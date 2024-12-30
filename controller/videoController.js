@@ -124,7 +124,7 @@ exports.deleteVideo = async (req, res) => {
 
 exports.searchVideos = async (req, res) => {
   try {
-    const { query, startDate, endDate, people, keywords } = req.query;
+    const { query, startDate, endDate, people, keywords, title } = req.query;
 
     const searchCriteria = {};
 
@@ -132,6 +132,7 @@ exports.searchVideos = async (req, res) => {
     if (query) {
       const searchRegex = new RegExp(query, "i");
       searchCriteria.$or = [
+        { title: { $regex: searchRegex } },
         { description: { $regex: searchRegex } },
         { keywords: { $regex: searchRegex } },
         { "relatedPeople.name": { $regex: searchRegex } },
@@ -215,6 +216,33 @@ exports.getAllVideos = async (req, res) => {
       data: videos,
     });
   } catch (error) {
+    res.status(400).json({
+      status: "error",
+      message: error.message,
+    });
+  }
+};
+
+exports.getVideo = async (req, res) => {
+  try {
+    const video = await Video.findById(req.params.id);
+
+    if (!person) {
+      logger.warn(`Video not found with ID: ${req.params.id}`);
+      return res.status(404).json({
+        status: "error",
+        message: "Video not found",
+      });
+    }
+
+    res.json({
+      status: "success",
+      data: video,
+    });
+  } catch (error) {
+    logger.error(
+      `Error getting video with ID: ${req.params.id} - ${error.message}`
+    );
     res.status(400).json({
       status: "error",
       message: error.message,

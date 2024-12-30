@@ -6,6 +6,12 @@ const videoSchema = new mongoose.Schema(
       type: String,
       required: true,
     },
+
+    title: {
+      type: String,
+      required: true,
+    },
+
     description: {
       type: String,
       required: true,
@@ -38,6 +44,7 @@ const videoSchema = new mongoose.Schema(
 
 videoSchema.index(
   {
+    title: "text",
     description: "text",
     keywords: "text",
     "relatedPeople.name": "text",
