@@ -1,0 +1,15 @@
+{
+    "keep": {
+        "days": true,
+        "amount": 31
+    },
+    "auditLog": "/Users/tausifmahmud/Developer/rapid_pr/backend/logs/.107336099bf0ba97537de536711317f60f6a859f-audit.json",
+    "files": [
+        {
+            "date": 1735587072217,
+            "name": "/Users/tausifmahmud/Developer/rapid_pr/backend/logs/error-2024-12-31.log",
+            "hash": "ad156d524172c505bf7b4a72efbe003cdf0a4c401700653bec28aa4270f687d7"
+        }
+    ],
+    "hashType": "sha256"
+}
