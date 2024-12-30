@@ -40,6 +40,9 @@ app.use(express.urlencoded({ extended: true }));
 
 // Routes
 app.use("/api/auth", require("./routes/authRoutes"));
+app.use("/api/persons", require("./routes/personRoutes"));
+app.use("/api/videos", require("./routes/videoRoutes"));
+
 app.use(errorHandler);
 
 //DB SETUP
