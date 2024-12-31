@@ -9,6 +9,11 @@
             "date": 1735587072218,
             "name": "/Users/tausifmahmud/Developer/rapid_pr/backend/logs/combined-2024-12-31.log",
             "hash": "d4f1120f2c14665d39f2014c8b7ff0fe700cf3ab46dd1b817d7a37f0d0d263ed"
+        },
+        {
+            "date": 1735682814282,
+            "name": "/Users/tausifmahmud/Developer/rapid_pr/backend/logs/combined-2025-01-01.log",
+            "hash": "93aa495c138ff7bed578e5755d24370c112a81320127856b4c55a1855f2b6b72"
         }
     ],
     "hashType": "sha256"

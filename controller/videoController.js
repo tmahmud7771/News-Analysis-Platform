@@ -40,9 +40,12 @@ exports.uploadVideo = (req, res) => {
     }
 
     try {
+      // Create full URL for video
+      const videoUrl = `${process.env.BACKEND_URL}/uploads/${req.file.filename}`;
+
       const videoData = {
         ...req.body,
-        videoLink: `/uploads/${req.file.filename}`,
+        videoLink: videoUrl, // Store full URL
         keywords: JSON.parse(req.body.keywords),
         relatedPeople: JSON.parse(req.body.relatedPeople),
       };
@@ -124,17 +127,25 @@ exports.deleteVideo = async (req, res) => {
 
 exports.searchVideos = async (req, res) => {
   try {
-    const { query, startDate, endDate, people, keywords, title } = req.query;
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    const skip = (page - 1) * limit;
 
+    const { query, startDate, endDate, people, keywords } = req.query;
+
+    // Build search criteria
     const searchCriteria = {};
 
-    // Text search using regex for fuzzy matching
+    // Text search using regex for fuzzy matching and handling Unicode
     if (query) {
-      const searchRegex = new RegExp(query, "i");
+      // Escape special regex characters to prevent regex injection
+      const escapedQuery = query.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      const searchRegex = new RegExp(escapedQuery, "iu"); // 'i' for case-insensitive, 'u' for unicode
+
       searchCriteria.$or = [
         { title: { $regex: searchRegex } },
         { description: { $regex: searchRegex } },
-        { keywords: { $regex: searchRegex } },
+        { keywords: { $elemMatch: { $regex: searchRegex } } }, // Search within array elements
         { "relatedPeople.name": { $regex: searchRegex } },
       ];
     }
@@ -152,27 +163,47 @@ exports.searchVideos = async (req, res) => {
       searchCriteria["relatedPeople.person"] = { $in: peopleIds };
     }
 
-    // Keywords filter
+    // Keywords filter - searching within array
     if (keywords) {
-      const keywordList = keywords.split(",");
-      searchCriteria.keywords = { $in: keywordList };
+      const keywordList = keywords.split(",").map((k) => k.trim());
+      searchCriteria.keywords = {
+        $in: keywordList.map((k) => new RegExp(k, "iu")),
+      };
     }
 
-    const videos = await Video.find(searchCriteria)
-      .populate("relatedPeople.person")
-      .sort({ datetime: -1 });
+    // Log the search criteria for debugging
+    console.log("Search Criteria:", JSON.stringify(searchCriteria, null, 2));
 
-    logger.info(`Videos found: ${videos.length}`);
+    // Execute query with pagination
+    const [videos, total] = await Promise.all([
+      Video.find(searchCriteria)
+        .populate("relatedPeople.person", "name occupation img")
+        .sort({ datetime: -1, createdAt: -1 })
+        .skip(skip)
+        .limit(limit)
+        .exec(), // Add exec() to ensure proper promise resolution
+
+      Video.countDocuments(searchCriteria),
+    ]);
+
+    // Log the results for debugging
+    console.log(`Found ${total} videos matching criteria`);
+
     res.json({
       status: "success",
-      results: videos.length,
       data: videos,
+      total,
+      totalPages: Math.ceil(total / limit),
+      currentPage: page,
+      limit,
     });
   } catch (error) {
-    logger.error(`Error searching videos: ${error.message}`);
-    res.status(400).json({
+    console.error("Search error:", error);
+    logger.error(`Search error: ${error.message}`);
+    res.status(500).json({
       status: "error",
-      message: error.message,
+      message: "Error performing search",
+      details: error.message,
     });
   }
 };

@@ -3,6 +3,7 @@ const mongoose = require("mongoose");
 const cors = require("cors");
 require("dotenv").config();
 const logger = require("./utils/logger");
+const path = require("path");
 
 const app = express();
 
@@ -37,6 +38,12 @@ const errorHandler = (err, req, res, next) => {
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+app.use("/uploads", express.static(path.join(__dirname, "uploads")));
+app.use("/uploads", (req, res, next) => {
+  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader("Access-Control-Allow-Methods", "GET");
+  next();
+});
 
 // Routes
 app.use("/api/auth", require("./routes/authRoutes"));

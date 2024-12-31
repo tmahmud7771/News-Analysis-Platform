@@ -2,17 +2,15 @@ const mongoose = require("mongoose");
 
 const videoSchema = new mongoose.Schema(
   {
-    videoLink: {
-      type: String,
-      required: true,
-    },
-
     title: {
       type: String,
       required: true,
     },
-
     description: {
+      type: String,
+      required: true,
+    },
+    videoLink: {
       type: String,
       required: true,
     },
@@ -42,21 +40,13 @@ const videoSchema = new mongoose.Schema(
   }
 );
 
-videoSchema.index(
-  {
-    title: "text",
-    description: "text",
-    keywords: "text",
-    "relatedPeople.name": "text",
-  },
-  {
-    weights: {
-      "relatedPeople.name": 10,
-      keywords: 5,
-      description: 3,
-    },
-  }
-);
+// Create compound indexes for better search performance
+videoSchema.index({
+  title: "text",
+  description: "text",
+  keywords: "text",
+  "relatedPeople.name": "text",
+});
+videoSchema.index({ datetime: 1, createdAt: -1 });
 
-const Video = mongoose.model("Video", videoSchema);
-module.exports = Video;
+module.exports = mongoose.model("Video", videoSchema);

@@ -10,3 +10,10 @@
 {"level":"info","message":"Person created with ID: 677303f6b0a0c77d9de73df5","meta":{},"timestamp":"2024-12-31 02:35:02"}
 {"level":"info","message":"Person deleted with ID: 677303e8b0a0c77d9de73df3","meta":{},"timestamp":"2024-12-31 02:41:25"}
 {"level":"info","message":"Person updated with ID: 677303f6b0a0c77d9de73df5","meta":{},"timestamp":"2024-12-31 02:43:12"}
+{"level":"info","message":"User logged in: t@g.com","meta":{},"timestamp":"2024-12-31 04:16:43"}
+{"level":"info","message":"User logged in: t@g.com","meta":{},"timestamp":"2024-12-31 04:20:25"}
+{"level":"error","message":"Error getting video with ID: search - Cast to ObjectId failed for value \"search\" (type string) at path \"_id\" for model \"Video\"","meta":{},"timestamp":"2024-12-31 04:22:02"}
+{"level":"error","message":"Error getting video with ID: search - Cast to ObjectId failed for value \"search\" (type string) at path \"_id\" for model \"Video\"","meta":{},"timestamp":"2024-12-31 04:22:02"}
+{"level":"info","message":"User logged in: t@g.com","meta":{},"timestamp":"2024-12-31 04:22:14"}
+{"level":"error","message":"Error getting video with ID: search - Cast to ObjectId failed for value \"search\" (type string) at path \"_id\" for model \"Video\"","meta":{},"timestamp":"2024-12-31 04:22:14"}
+{"level":"error","message":"Error getting video with ID: search - Cast to ObjectId failed for value \"search\" (type string) at path \"_id\" for model \"Video\"","meta":{},"timestamp":"2024-12-31 04:22:14"}
