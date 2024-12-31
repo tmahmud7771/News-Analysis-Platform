@@ -41,6 +41,7 @@ export default function VideoList({
       if (startDate) searchParams.append("startDate", startDate);
       if (endDate) searchParams.append("endDate", endDate);
 
+      // Note the /search endpoint
       const res = await fetch(
         `${process.env.NEXT_PUBLIC_API_URL}/videos/search?${searchParams}`,
         {
