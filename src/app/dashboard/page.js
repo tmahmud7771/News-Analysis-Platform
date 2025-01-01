@@ -1,18 +1,52 @@
-// app/dashboard/page.js
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAuth } from "@/providers/AuthProvider";
 import VideoList from "@/app/dashboard/VideoList";
+import SearchAnalytics from "@/components/SearchAnalytics";
 
 export default function DashboardPage() {
-  const { user, logout } = useAuth();
+  const { user, logout, getToken } = useAuth();
   const [searchQuery, setSearchQuery] = useState("");
   const [keywords, setKeywords] = useState([]);
   const [currentKeyword, setCurrentKeyword] = useState("");
   const [startDate, setStartDate] = useState(null);
   const [endDate, setEndDate] = useState(null);
   const [showFilters, setShowFilters] = useState(false);
+  const [searchResults, setSearchResults] = useState(null);
+  const [showAnalytics, setShowAnalytics] = useState(false);
+
+  // Profile selection states
+  const [profiles, setProfiles] = useState([]);
+  const [selectedProfiles, setSelectedProfiles] = useState([]);
+  const [profileSearchQuery, setProfileSearchQuery] = useState("");
+  const [showProfileDropdown, setShowProfileDropdown] = useState(false);
+
+  // Fetch profiles
+  useEffect(() => {
+    const fetchProfiles = async () => {
+      try {
+        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/persons`, {
+          headers: {
+            Authorization: `Bearer ${getToken()}`,
+          },
+        });
+        const data = await res.json();
+        if (data.status === "success") {
+          setProfiles(data.data);
+        }
+      } catch (error) {
+        console.error("Error fetching profiles:", error);
+      }
+    };
+
+    fetchProfiles();
+  }, []);
+
+  // Filter profiles based on search query
+  const filteredProfiles = profiles.filter((profile) =>
+    profile.name.toLowerCase().includes(profileSearchQuery.toLowerCase())
+  );
 
   const handleAddKeyword = (e) => {
     if (e.key === "Enter" && currentKeyword && keywords.length < 10) {
@@ -27,7 +61,25 @@ export default function DashboardPage() {
 
   const handleSearch = () => {
     setShowFilters(true);
-    // Implement search logic
+    setShowAnalytics(true); // Show analytics when search is performed
+  };
+
+  const handleProfileSelect = (profile) => {
+    if (!selectedProfiles.find((p) => p._id === profile._id)) {
+      setSelectedProfiles([...selectedProfiles, profile]);
+    }
+    setProfileSearchQuery("");
+    setShowProfileDropdown(false);
+  };
+
+  const removeProfile = (profileId) => {
+    setSelectedProfiles(selectedProfiles.filter((p) => p._id !== profileId));
+  };
+
+  // Handle search results update
+  const handleSearchResults = (results) => {
+    setSearchResults(results);
+    setShowAnalytics(true);
   };
 
   return (
@@ -105,6 +157,57 @@ export default function DashboardPage() {
             )}
           </div>
 
+          {/* Profile Selection */}
+          <div className="relative">
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Related People
+            </label>
+            <div className="relative">
+              <input
+                type="text"
+                placeholder="Search and select profiles..."
+                value={profileSearchQuery}
+                onChange={(e) => {
+                  setProfileSearchQuery(e.target.value);
+                  setShowProfileDropdown(true);
+                }}
+                onFocus={() => setShowProfileDropdown(true)}
+                className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+              {showProfileDropdown && filteredProfiles.length > 0 && (
+                <div className="absolute z-10 w-full mt-1 bg-white shadow-lg rounded-md max-h-60 overflow-auto">
+                  {filteredProfiles.map((profile) => (
+                    <div
+                      key={profile._id}
+                      className="px-4 py-2 hover:bg-gray-100 cursor-pointer"
+                      onClick={() => handleProfileSelect(profile)}
+                    >
+                      {profile.name}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+            {selectedProfiles.length > 0 && (
+              <div className="flex flex-wrap gap-2 mt-2">
+                {selectedProfiles.map((profile) => (
+                  <span
+                    key={profile._id}
+                    className="inline-flex items-center px-2 py-1 bg-blue-50 text-blue-700 rounded"
+                  >
+                    {profile.name}
+                    <button
+                      onClick={() => removeProfile(profile._id)}
+                      className="ml-1 text-blue-500 hover:text-blue-700"
+                    >
+                      ×
+                    </button>
+                  </span>
+                ))}
+              </div>
+            )}
+          </div>
+
           {/* Date Range Selection */}
           <div className="flex gap-4">
             <input
@@ -121,6 +224,19 @@ export default function DashboardPage() {
             />
           </div>
         </div>
+
+        {/* Analytics Section */}
+        {showAnalytics && searchResults && (
+          <div className="mt-6 transition-all duration-300 ease-in-out">
+            <SearchAnalytics
+              searchResults={searchResults}
+              searchQuery={searchQuery}
+              selectedProfiles={selectedProfiles}
+              startDate={startDate}
+              endDate={endDate}
+            />
+          </div>
+        )}
       </div>
 
       {/* Video List Section */}
@@ -130,6 +246,8 @@ export default function DashboardPage() {
           keywords={keywords}
           startDate={startDate}
           endDate={endDate}
+          selectedProfiles={selectedProfiles}
+          onResultsUpdate={handleSearchResults} // Add this line
         />
       </div>
     </div>

@@ -3,6 +3,7 @@
 
 import { useState, useEffect } from "react";
 import { useAuth } from "@/providers/AuthProvider";
+import VideoDetailModal from "@/components/VideoDetailModal";
 const ITEMS_PER_PAGE = 10;
 
 // Helper function to format date
@@ -20,6 +21,8 @@ export default function VideoList({
   keywords,
   startDate,
   endDate,
+  selectedProfiles,
+  onResultsUpdate,
 }) {
   const [videos, setVideos] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -27,6 +30,8 @@ export default function VideoList({
   const [totalPages, setTotalPages] = useState(0);
   const [totalVideos, setTotalVideos] = useState(0);
   const { getToken } = useAuth();
+  const [selectedVideo, setSelectedVideo] = useState(null);
+  const [showModal, setShowModal] = useState(false);
 
   const fetchVideos = async (page = 1) => {
     setLoading(true);
@@ -36,12 +41,29 @@ export default function VideoList({
         limit: ITEMS_PER_PAGE.toString(),
       });
 
-      if (searchQuery) searchParams.append("query", searchQuery);
-      if (keywords?.length) searchParams.append("keywords", keywords.join(","));
-      if (startDate) searchParams.append("startDate", startDate);
-      if (endDate) searchParams.append("endDate", endDate);
+      if (searchQuery) {
+        searchParams.append("query", searchQuery);
+      }
 
-      // Note the /search endpoint
+      if (keywords?.length) {
+        searchParams.append("keywords", keywords.join(","));
+      }
+
+      if (startDate) {
+        searchParams.append("startDate", startDate);
+      }
+
+      if (endDate) {
+        searchParams.append("endDate", endDate);
+      }
+
+      if (selectedProfiles?.length) {
+        searchParams.append(
+          "people",
+          selectedProfiles.map((p) => p._id).join(",")
+        );
+      }
+
       const res = await fetch(
         `${process.env.NEXT_PUBLIC_API_URL}/videos/search?${searchParams}`,
         {
@@ -56,6 +78,11 @@ export default function VideoList({
         setVideos(data.data);
         setTotalVideos(data.total);
         setTotalPages(Math.ceil(data.total / ITEMS_PER_PAGE));
+
+        // Send results back to parent for analytics
+        if (onResultsUpdate) {
+          onResultsUpdate(data.data);
+        }
       }
     } catch (error) {
       console.error("Error fetching videos:", error);
@@ -64,9 +91,37 @@ export default function VideoList({
     }
   };
 
+  const handleVideoClick = (video) => {
+    setSelectedVideo(video);
+    setShowModal(true);
+  };
+
+  const handleViewMore = (video) => {
+    setSelectedVideo(video);
+    setShowModal(true);
+  };
+
+  const closeModal = () => {
+    setShowModal(false);
+    setSelectedVideo(null);
+  };
+
+  // Reset to first page when search parameters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, keywords, startDate, endDate, selectedProfiles]);
+
+  // Fetch videos when page or search parameters change
   useEffect(() => {
     fetchVideos(currentPage);
-  }, [currentPage, searchQuery, keywords, startDate, endDate]);
+  }, [
+    currentPage,
+    searchQuery,
+    keywords,
+    startDate,
+    endDate,
+    selectedProfiles,
+  ]);
 
   if (loading) {
     return (
@@ -76,15 +131,29 @@ export default function VideoList({
     );
   }
 
+  if (!loading && videos.length === 0) {
+    return (
+      <div className="text-center py-8 text-gray-500">
+        No videos found matching your criteria
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       {/* Video List */}
       <div className="space-y-4">
         {videos.map((video) => (
-          <div key={video._id} className="bg-white rounded-lg shadow p-4">
+          <div
+            key={video._id}
+            className="bg-white rounded-lg shadow p-4 hover:shadow-lg transition-shadow duration-200"
+          >
             <div className="flex gap-4">
               {/* Video Preview - 35% width */}
-              <div className="w-[35%]">
+              <div
+                className="w-[35%] cursor-pointer"
+                onClick={() => handleVideoClick(video)}
+              >
                 <div className="relative aspect-video bg-gray-100 rounded overflow-hidden">
                   <video
                     src={video.videoLink}
@@ -97,7 +166,10 @@ export default function VideoList({
               {/* Video Details - 65% width */}
               <div className="w-[65%] space-y-2">
                 {/* Title */}
-                <h3 className="text-lg font-semibold hover:text-blue-600 cursor-pointer">
+                <h3
+                  className="text-lg font-semibold hover:text-blue-600 cursor-pointer"
+                  onClick={() => handleVideoClick(video)}
+                >
                   {video.title}
                 </h3>
 
@@ -122,11 +194,26 @@ export default function VideoList({
                 <div className="text-sm text-gray-500">
                   {formatDate(video.datetime)}
                 </div>
+
+                {/* View More Button */}
+                <button
+                  onClick={() => handleViewMore(video)}
+                  className="mt-2 px-4 py-2 text-sm bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+                >
+                  View More
+                </button>
               </div>
             </div>
           </div>
         ))}
       </div>
+
+      {/* Video Detail Modal */}
+      <VideoDetailModal
+        video={selectedVideo}
+        show={showModal}
+        onClose={closeModal}
+      />
 
       {/* Pagination */}
       {totalPages > 1 && (

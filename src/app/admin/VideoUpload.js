@@ -1,14 +1,14 @@
-// app/admin/VideoUpload.js
 "use client";
 
 import { useState, useEffect } from "react";
 import { useAuth } from "@/providers/AuthProvider";
+import VideoFormModal from "@/components/VideoFormModal";
 
 export default function VideoUpload() {
   const [videos, setVideos] = useState([]);
   const [profiles, setProfiles] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [showForm, setShowForm] = useState(false);
+  const [showModal, setShowModal] = useState(false);
   const [editingVideo, setEditingVideo] = useState(null);
   const { getToken } = useAuth();
 
@@ -22,6 +22,7 @@ export default function VideoUpload() {
     videoFile: null,
   });
 
+  // Fetch videos
   const fetchVideos = async () => {
     setLoading(true);
     try {
@@ -41,6 +42,7 @@ export default function VideoUpload() {
     }
   };
 
+  // Fetch profiles
   const fetchProfiles = async () => {
     try {
       const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/persons`, {
@@ -62,56 +64,145 @@ export default function VideoUpload() {
     fetchProfiles();
   }, []);
 
+  const handleEdit = (video) => {
+    setEditingVideo(video);
+    setFormData({
+      title: video.title || "",
+      description: video.description || "",
+      keywords: Array.isArray(video.keywords) ? video.keywords.join(", ") : "",
+      relatedPeople: Array.isArray(video.relatedPeople)
+        ? video.relatedPeople
+        : [],
+      datetime: video.datetime
+        ? new Date(video.datetime).toISOString().slice(0, 16)
+        : "",
+      videoFile: null, // Reset video file on edit
+    });
+    setShowModal(true);
+  };
+
+  const closeModal = () => {
+    setShowModal(false);
+    setEditingVideo(null);
+    setFormData({
+      title: "",
+      description: "",
+      keywords: "",
+      relatedPeople: [],
+      datetime: "",
+      videoFile: null,
+    });
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
       const formDataToSend = new FormData();
-      formDataToSend.append("title", formData.title);
-      formDataToSend.append("description", formData.description);
-      formDataToSend.append(
-        "keywords",
-        JSON.stringify(formData.keywords.split(",").map((k) => k.trim()))
-      );
-      formDataToSend.append(
-        "relatedPeople",
-        JSON.stringify(formData.relatedPeople)
-      );
+
+      // Basic validation
+      if (!formData.title?.trim()) throw new Error("Title is required");
+      if (!formData.description?.trim())
+        throw new Error("Description is required");
+      if (!formData.datetime) throw new Error("Date and time is required");
+      if (!editingVideo && !formData.videoFile)
+        throw new Error("Video file is required");
+
+      // Add base fields
+      formDataToSend.append("title", formData.title.trim());
+      formDataToSend.append("description", formData.description.trim());
       formDataToSend.append("datetime", formData.datetime);
 
+      // Process and add keywords
+      const processedKeywords = formData.keywords
+        ? formData.keywords
+            .split(",")
+            .map((k) => k.trim())
+            .filter((k) => k.length > 0)
+        : [];
+      formDataToSend.append("keywords", JSON.stringify(processedKeywords));
+
+      // Process and add related people
+      const processedPeople = Array.isArray(formData.relatedPeople)
+        ? formData.relatedPeople
+        : [];
+      formDataToSend.append("relatedPeople", JSON.stringify(processedPeople));
+
+      // Add video file - IMPORTANT: must be appended last
       if (formData.videoFile) {
         formDataToSend.append("video", formData.videoFile);
+        console.log("Video file appended:", formData.videoFile.name);
+      }
+
+      // Debug logging
+      console.log("Form submission data:");
+      for (let [key, value] of formDataToSend.entries()) {
+        if (value instanceof File) {
+          console.log(key, `File: ${value.name}, size: ${value.size} bytes`);
+        } else {
+          console.log(key, value);
+        }
       }
 
       const endpoint = editingVideo
         ? `${process.env.NEXT_PUBLIC_API_URL}/videos/${editingVideo._id}`
         : `${process.env.NEXT_PUBLIC_API_URL}/videos`;
 
-      const method = editingVideo ? "PATCH" : "POST";
+      console.log("Submitting to:", endpoint);
 
       const response = await fetch(endpoint, {
-        method,
+        method: editingVideo ? "PATCH" : "POST",
         headers: {
           Authorization: `Bearer ${getToken()}`,
         },
         body: formDataToSend,
       });
 
-      if (response.ok) {
-        fetchVideos();
-        setShowForm(false);
-        setEditingVideo(null);
-        setFormData({
-          title: "",
-          description: "",
-          keywords: "",
-          relatedPeople: [],
-          datetime: "",
-          videoFile: null,
-        });
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Failed to upload video");
       }
+
+      const responseData = await response.json();
+      console.log("Success response:", responseData);
+
+      await fetchVideos();
+      closeModal();
     } catch (error) {
-      console.error("Error saving video:", error);
+      console.error("Submission error:", error);
+      alert(error.message);
     }
+  };
+
+  const handleFileChange = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) {
+      setFormData({ ...formData, videoFile: null });
+      return;
+    }
+
+    // Validate file type
+    const validTypes = ["video/mp4", "video/webm", "video/ogg"];
+    if (!validTypes.includes(file.type)) {
+      alert("Please select a valid video file (MP4, WebM, or OGG)");
+      e.target.value = "";
+      return;
+    }
+
+    // Validate file size (1GB)
+    const maxSize = 1024 * 1024 * 1024;
+    if (file.size > maxSize) {
+      alert("File is too large. Maximum size is 1GB");
+      e.target.value = "";
+      return;
+    }
+
+    console.log("Selected file:", {
+      name: file.name,
+      type: file.type,
+      size: file.size,
+    });
+
+    setFormData({ ...formData, videoFile: file });
   };
 
   const handleDelete = async (videoId) => {
@@ -139,168 +230,23 @@ export default function VideoUpload() {
   return (
     <div className="space-y-6">
       {/* Add Video Button */}
-      {!showForm && (
-        <button
-          onClick={() => setShowForm(true)}
-          className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-        >
-          Upload New Video
-        </button>
-      )}
+      <button
+        onClick={() => setShowModal(true)}
+        className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+      >
+        Upload New Video
+      </button>
 
-      {/* Video Form */}
-      {showForm && (
-        <form
-          onSubmit={handleSubmit}
-          className="bg-white p-6 rounded-lg shadow space-y-4"
-        >
-          <div>
-            <label className="block text-sm font-medium text-gray-700">
-              Title
-            </label>
-            <input
-              type="text"
-              value={formData.title}
-              onChange={(e) =>
-                setFormData({ ...formData, title: e.target.value })
-              }
-              className="mt-1 w-full px-4 py-2 border rounded-md"
-              required
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700">
-              Description
-            </label>
-            <textarea
-              value={formData.description}
-              onChange={(e) =>
-                setFormData({ ...formData, description: e.target.value })
-              }
-              className="mt-1 w-full px-4 py-2 border rounded-md"
-              rows="3"
-              required
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700">
-              Keywords (comma-separated)
-            </label>
-            <input
-              type="text"
-              value={formData.keywords}
-              onChange={(e) =>
-                setFormData({ ...formData, keywords: e.target.value })
-              }
-              className="mt-1 w-full px-4 py-2 border rounded-md"
-              required
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700">
-              Related People
-            </label>
-            <div className="mt-1 grid grid-cols-2 gap-2">
-              {profiles.map((profile) => (
-                <label
-                  key={profile._id}
-                  className="flex items-center space-x-2"
-                >
-                  <input
-                    type="checkbox"
-                    checked={formData.relatedPeople.some(
-                      (p) => p.person === profile._id
-                    )}
-                    onChange={(e) => {
-                      if (e.target.checked) {
-                        setFormData({
-                          ...formData,
-                          relatedPeople: [
-                            ...formData.relatedPeople,
-                            {
-                              person: profile._id,
-                              name: profile.name,
-                            },
-                          ],
-                        });
-                      } else {
-                        setFormData({
-                          ...formData,
-                          relatedPeople: formData.relatedPeople.filter(
-                            (p) => p.person !== profile._id
-                          ),
-                        });
-                      }
-                    }}
-                    className="rounded border-gray-300"
-                  />
-                  <span className="text-sm text-gray-600">{profile.name}</span>
-                </label>
-              ))}
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700">
-              Date and Time
-            </label>
-            <input
-              type="datetime-local"
-              value={formData.datetime}
-              onChange={(e) =>
-                setFormData({ ...formData, datetime: e.target.value })
-              }
-              className="mt-1 w-full px-4 py-2 border rounded-md"
-              required
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700">
-              Video File
-            </label>
-            <input
-              type="file"
-              onChange={(e) =>
-                setFormData({ ...formData, videoFile: e.target.files[0] })
-              }
-              accept="video/*"
-              className="mt-1 w-full"
-              required={!editingVideo}
-            />
-          </div>
-
-          <div className="flex gap-2">
-            <button
-              type="submit"
-              className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-            >
-              {editingVideo ? "Update Video" : "Upload Video"}
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setShowForm(false);
-                setEditingVideo(null);
-                setFormData({
-                  title: "",
-                  description: "",
-                  keywords: "",
-                  relatedPeople: [],
-                  datetime: "",
-                  videoFile: null,
-                });
-              }}
-              className="px-4 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300"
-            >
-              Cancel
-            </button>
-          </div>
-        </form>
-      )}
+      {/* Video Form Modal */}
+      <VideoFormModal
+        show={showModal}
+        onClose={closeModal}
+        formData={formData}
+        setFormData={setFormData}
+        handleSubmit={handleSubmit}
+        editingVideo={editingVideo}
+        profiles={profiles}
+      />
 
       {/* Videos List */}
       <div className="grid gap-4">
@@ -309,8 +255,20 @@ export default function VideoUpload() {
         ) : (
           videos.map((video) => (
             <div key={video._id} className="bg-white p-4 rounded-lg shadow">
-              <div className="flex justify-between items-start">
-                <div className="space-y-2">
+              <div className="flex gap-4">
+                {/* Video Preview - 35% width */}
+                <div className="w-[35%]">
+                  <div className="relative aspect-video bg-gray-100 rounded overflow-hidden">
+                    <video
+                      src={video.videoLink}
+                      className="absolute inset-0 w-full h-full object-cover"
+                      controls
+                    />
+                  </div>
+                </div>
+
+                {/* Video Details - 65% width */}
+                <div className="w-[65%] space-y-2">
                   <h3 className="text-lg font-semibold">{video.title}</h3>
                   <p className="text-sm text-gray-600">{video.description}</p>
                   <div className="flex flex-wrap gap-2">
@@ -330,14 +288,20 @@ export default function VideoUpload() {
                   <div className="text-sm text-gray-500">
                     Date: {new Date(video.datetime).toLocaleString()}
                   </div>
-                </div>
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => handleDelete(video._id)}
-                    className="px-3 py-1 text-sm bg-red-100 text-red-700 rounded hover:bg-red-200"
-                  >
-                    Delete
-                  </button>
+                  <div className="flex gap-2 mt-2">
+                    <button
+                      onClick={() => handleEdit(video)}
+                      className="px-3 py-1 text-sm bg-blue-100 text-blue-700 rounded hover:bg-blue-200"
+                    >
+                      Edit
+                    </button>
+                    <button
+                      onClick={() => handleDelete(video._id)}
+                      className="px-3 py-1 text-sm bg-red-100 text-red-700 rounded hover:bg-red-200"
+                    >
+                      Delete
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
