@@ -40,15 +40,26 @@ exports.uploadVideo = (req, res) => {
     }
 
     try {
+      console.log("Upload request body:", req.body);
+      console.log("Upload file:", req.file);
+
+      if (!req.file) {
+        throw new Error("No video file provided");
+      }
+
       // Create full URL for video
       const videoUrl = `${process.env.BACKEND_URL}/uploads/${req.file.filename}`;
 
       const videoData = {
-        ...req.body,
-        videoLink: videoUrl, // Store full URL
-        keywords: JSON.parse(req.body.keywords),
-        relatedPeople: JSON.parse(req.body.relatedPeople),
+        title: req.body.title,
+        description: req.body.description,
+        datetime: req.body.datetime,
+        videoLink: videoUrl,
+        keywords: JSON.parse(req.body.keywords || "[]"),
+        relatedPeople: JSON.parse(req.body.relatedPeople || "[]"),
       };
+
+      console.log("Creating video with data:", videoData);
 
       const video = await Video.create(videoData);
       logger.info(`Video uploaded successfully: ${video._id}`);
@@ -67,25 +78,84 @@ exports.uploadVideo = (req, res) => {
   });
 };
 
+exports.uploadVideo = async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({
+        status: "error",
+        message: "Video file is required",
+      });
+    }
+
+    // Create full video URL
+    const videoUrl = `${process.env.BACKEND_URL}/uploads/${req.file.filename}`;
+
+    const videoData = {
+      title: req.body.title,
+      description: req.body.description,
+      videoLink: videoUrl,
+      keywords: JSON.parse(req.body.keywords || "[]"),
+      relatedPeople: JSON.parse(req.body.relatedPeople || "[]"),
+      datetime: req.body.datetime,
+    };
+
+    const video = await Video.create(videoData);
+
+    logger.info(`Video uploaded successfully: ${video._id}`);
+    res.status(201).json({
+      status: "success",
+      data: video,
+    });
+  } catch (error) {
+    logger.error(`Error creating video: ${error.message}`);
+    res.status(400).json({
+      status: "error",
+      message: error.message,
+    });
+  }
+};
+
 exports.updateVideo = async (req, res) => {
   try {
-    const video = await Video.findByIdAndUpdate(req.params.id, req.body, {
-      new: true,
-      runValidators: true,
-    });
-
-    if (!video) {
-      logger.warn(`Video not found: ${req.params.id}`);
+    const existingVideo = await Video.findById(req.params.id);
+    if (!existingVideo) {
       return res.status(404).json({
         status: "error",
         message: "Video not found",
       });
     }
 
-    logger.info(`Video updated successfully: ${video._id}`);
+    const updateData = {
+      title: req.body.title,
+      description: req.body.description,
+      datetime: req.body.datetime,
+    };
+
+    // Update video file if provided
+    if (req.file) {
+      updateData.videoLink = `${process.env.BACKEND_URL}/uploads/${req.file.filename}`;
+      // Here you might want to delete the old video file
+    }
+
+    // Update arrays if provided
+    if (req.body.keywords) {
+      updateData.keywords = JSON.parse(req.body.keywords);
+    }
+
+    if (req.body.relatedPeople) {
+      updateData.relatedPeople = JSON.parse(req.body.relatedPeople);
+    }
+
+    const updatedVideo = await Video.findByIdAndUpdate(
+      req.params.id,
+      updateData,
+      { new: true, runValidators: true }
+    );
+
+    logger.info(`Video updated successfully: ${updatedVideo._id}`);
     res.json({
       status: "success",
-      data: video,
+      data: updatedVideo,
     });
   } catch (error) {
     logger.error(`Error updating video: ${error.message}`);
@@ -95,7 +165,6 @@ exports.updateVideo = async (req, res) => {
     });
   }
 };
-
 exports.deleteVideo = async (req, res) => {
   try {
     const video = await Video.findByIdAndDelete(req.params.id);
