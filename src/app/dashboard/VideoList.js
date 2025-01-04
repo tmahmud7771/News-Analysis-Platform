@@ -22,6 +22,7 @@ export default function VideoList({
   startDate,
   endDate,
   selectedProfiles,
+  selectedChannels,
   onResultsUpdate,
 }) {
   const [videos, setVideos] = useState([]);
@@ -61,6 +62,13 @@ export default function VideoList({
         searchParams.append(
           "people",
           selectedProfiles.map((p) => p._id).join(",")
+        );
+      }
+
+      if (selectedChannels?.length) {
+        searchParams.append(
+          "channels",
+          selectedChannels.map((c) => c._id).join(",")
         );
       }
 
@@ -109,7 +117,14 @@ export default function VideoList({
   // Reset to first page when search parameters change
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchQuery, keywords, startDate, endDate, selectedProfiles]);
+  }, [
+    searchQuery,
+    keywords,
+    startDate,
+    endDate,
+    selectedProfiles,
+    selectedChannels,
+  ]);
 
   // Fetch videos when page or search parameters change
   useEffect(() => {
@@ -121,6 +136,7 @@ export default function VideoList({
     startDate,
     endDate,
     selectedProfiles,
+    selectedChannels,
   ]);
 
   if (loading) {

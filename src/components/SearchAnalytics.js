@@ -34,10 +34,28 @@ export default function SearchAnalytics({
     });
   });
 
+  const channelStats = {};
+  searchResults.forEach((video) => {
+    if (video.channels && Array.isArray(video.channels)) {
+      video.channels.forEach((channel) => {
+        if (channel?.channel?.name) {
+          channelStats[channel.channel.name] =
+            (channelStats[channel.channel.name] || 0) + 1;
+        }
+      });
+    }
+  });
+
   // Prepare data for pie chart
   const peopleData = Object.entries(peopleStats)
     .sort(([, a], [, b]) => b - a)
     .slice(0, 5)
+    .map(([name, value]) => ({ name, value }));
+
+  // Prepare data for channel pie chart
+  const channelData = Object.entries(channelStats)
+    .sort(([, a], [, b]) => b - a)
+    .slice(0, 5) // Get top 5 channels
     .map(([name, value]) => ({ name, value }));
 
   // Calculate monthly distribution
@@ -164,6 +182,37 @@ export default function SearchAnalytics({
                       <Cell
                         key={`cell-${index}`}
                         fill={COLORS[index % COLORS.length]}
+                      />
+                    ))}
+                  </Pie>
+                  <Tooltip />
+                  <Legend />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+
+            {/* Channel Distribution Pie Chart */}
+            <div className="h-[300px]">
+              <h3 className="font-semibold mb-4 text-gray-700">
+                Channel Distribution
+              </h3>
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={channelData}
+                    cx="50%"
+                    cy="50%"
+                    labelLine={false}
+                    outerRadius={80}
+                    dataKey="value"
+                    label={({ name, percent }) =>
+                      `${name} (${(percent * 100).toFixed(0)}%)`
+                    }
+                  >
+                    {channelData.map((entry, index) => (
+                      <Cell
+                        key={`cell-${index}`}
+                        fill={COLORS[(index + 2) % COLORS.length]} // Offset colors to differentiate from people chart
                       />
                     ))}
                   </Pie>

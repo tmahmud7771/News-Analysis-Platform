@@ -10,6 +10,7 @@ export default function VideoUpload() {
   const [loading, setLoading] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const [editingVideo, setEditingVideo] = useState(null);
+  const [channels, setChannels] = useState([]);
   const { getToken } = useAuth();
 
   // Form state
@@ -20,6 +21,7 @@ export default function VideoUpload() {
     relatedPeople: [],
     datetime: "",
     videoFile: null,
+    channels: [],
   });
 
   // Fetch videos
@@ -59,9 +61,26 @@ export default function VideoUpload() {
     }
   };
 
+  const fetchChannels = async () => {
+    try {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/channels`, {
+        headers: {
+          Authorization: `Bearer ${getToken()}`,
+        },
+      });
+      const data = await res.json();
+      if (data.status === "success") {
+        setChannels(data.data);
+      }
+    } catch (error) {
+      console.error("Error fetching channels:", error);
+    }
+  };
+
   useEffect(() => {
     fetchVideos();
     fetchProfiles();
+    fetchChannels();
   }, []);
 
   const handleEdit = (video) => {
@@ -72,6 +91,9 @@ export default function VideoUpload() {
       keywords: Array.isArray(video.keywords) ? video.keywords.join(", ") : "",
       relatedPeople: Array.isArray(video.relatedPeople)
         ? video.relatedPeople
+        : [],
+      channels: Array.isArray(video.channels)
+        ? video.channels.map((c) => ({ channel: c._id, name: c.name }))
         : [],
       datetime: video.datetime
         ? new Date(video.datetime).toISOString().slice(0, 16)
@@ -89,6 +111,7 @@ export default function VideoUpload() {
       description: "",
       keywords: "",
       relatedPeople: [],
+      channels: [],
       datetime: "",
       videoFile: null,
     });
@@ -127,10 +150,17 @@ export default function VideoUpload() {
         : [];
       formDataToSend.append("relatedPeople", JSON.stringify(processedPeople));
 
+      // Process and add channels
+
+      const processedChannels = Array.isArray(formData.channels)
+        ? formData.channels
+        : [];
+      formDataToSend.append("channels", JSON.stringify(processedChannels));
+
       // Add video file - IMPORTANT: must be appended last
       if (formData.videoFile) {
         formDataToSend.append("video", formData.videoFile);
-        console.log("Video file appended:", formData.videoFile.name);
+        // console.log("Video file appended:", formData.videoFile.name);
       }
 
       // Debug logging
@@ -246,6 +276,7 @@ export default function VideoUpload() {
         handleSubmit={handleSubmit}
         editingVideo={editingVideo}
         profiles={profiles}
+        channels={channels}
       />
 
       {/* Videos List */}

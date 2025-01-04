@@ -1,11 +1,13 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useAuth } from "@/providers/AuthProvider";
+import { useRouter } from "next/navigation";
 import VideoList from "@/app/dashboard/VideoList";
 import SearchAnalytics from "@/components/SearchAnalytics";
 
 export default function DashboardPage() {
+  const router = useRouter();
   const { user, logout, getToken } = useAuth();
   const [searchQuery, setSearchQuery] = useState("");
   const [keywords, setKeywords] = useState([]);
@@ -21,6 +23,58 @@ export default function DashboardPage() {
   const [selectedProfiles, setSelectedProfiles] = useState([]);
   const [profileSearchQuery, setProfileSearchQuery] = useState("");
   const [showProfileDropdown, setShowProfileDropdown] = useState(false);
+
+  // Channel selection states
+
+  const [selectedChannels, setSelectedChannels] = useState([]);
+  const [channels, setChannels] = useState([]);
+  const [channelSearchQuery, setChannelSearchQuery] = useState("");
+  const [showChannelDropdown, setShowChannelDropdown] = useState(false);
+
+  const profileDropdownRef = useRef(null);
+  const channelDropdownRef = useRef(null);
+
+  const handleAdminAccess = () => {
+    if (user?.role === "admin") {
+      router.push("/admin");
+    } else {
+      // Optionally show an error message for non-admin users
+      alert("You do not have permission to access the admin dashboard");
+    }
+  };
+
+  // Handle click outside for dropdowns
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (
+        profileDropdownRef.current &&
+        !profileDropdownRef.current.contains(event.target)
+      ) {
+        setShowProfileDropdown(false);
+      }
+      if (
+        channelDropdownRef.current &&
+        !channelDropdownRef.current.contains(event.target)
+      ) {
+        setShowChannelDropdown(false);
+      }
+    }
+
+    function handleEscKey(event) {
+      if (event.key === "Escape") {
+        setShowProfileDropdown(false);
+        setShowChannelDropdown(false);
+      }
+    }
+
+    document.addEventListener("mousedown", handleClickOutside);
+    document.addEventListener("keydown", handleEscKey);
+
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("keydown", handleEscKey);
+    };
+  }, []);
 
   // Fetch profiles
   useEffect(() => {
@@ -41,6 +95,26 @@ export default function DashboardPage() {
     };
 
     fetchProfiles();
+  }, []);
+
+  const fetchChannels = async () => {
+    try {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/channels`, {
+        headers: {
+          Authorization: `Bearer ${getToken()}`,
+        },
+      });
+      const data = await res.json();
+      if (data.status === "success") {
+        setChannels(data.data);
+      }
+    } catch (error) {
+      console.error("Error fetching channels:", error);
+    }
+  };
+
+  useEffect(() => {
+    fetchChannels();
   }, []);
 
   // Filter profiles based on search query
@@ -91,10 +165,19 @@ export default function DashboardPage() {
             <h1 className="text-xl font-semibold text-gray-900">
               Video Dashboard
             </h1>
+
             <div className="flex items-center space-x-4">
               <span className="text-sm text-gray-600">
                 Welcome, {user?.username}
               </span>
+              {user?.role === "admin" && (
+                <button
+                  onClick={handleAdminAccess}
+                  className="px-3 py-1 text-sm text-gray-700 hover:text-gray-900 bg-gray-100 hover:bg-gray-200 rounded"
+                >
+                  Admin
+                </button>
+              )}
               <button
                 onClick={logout}
                 className="px-3 py-1 text-sm text-gray-700 hover:text-gray-900 bg-gray-100 hover:bg-gray-200 rounded"
@@ -208,6 +291,91 @@ export default function DashboardPage() {
             )}
           </div>
 
+          {/* Channel Selection */}
+          <div className="relative">
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Filter by Channels
+            </label>
+            <div className="relative">
+              <input
+                type="text"
+                placeholder="Search and select channels..."
+                value={channelSearchQuery}
+                onChange={(e) => {
+                  setChannelSearchQuery(e.target.value);
+                  setShowChannelDropdown(true);
+                }}
+                onFocus={() => setShowChannelDropdown(true)}
+                className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+              {showChannelDropdown && channels.length > 0 && (
+                <div className="absolute z-10 w-full mt-1 bg-white shadow-lg rounded-md max-h-60 overflow-auto">
+                  {channels
+                    .filter((channel) =>
+                      channel.name
+                        .toLowerCase()
+                        .includes(channelSearchQuery.toLowerCase())
+                    )
+                    .map((channel) => (
+                      <div
+                        key={channel._id}
+                        className="flex items-center px-4 py-2 hover:bg-gray-100 cursor-pointer"
+                        onClick={() => {
+                          if (
+                            !selectedChannels.find((c) => c._id === channel._id)
+                          ) {
+                            setSelectedChannels([...selectedChannels, channel]);
+                          }
+                          setChannelSearchQuery("");
+                          setShowChannelDropdown(false);
+                        }}
+                      >
+                        <img
+                          src={channel.img}
+                          alt={channel.name}
+                          className="w-6 h-6 rounded-full mr-2"
+                          onError={(e) => {
+                            e.target.src = "https://via.placeholder.com/24";
+                          }}
+                        />
+                        <span className="text-sm">{channel.name}</span>
+                      </div>
+                    ))}
+                </div>
+              )}
+            </div>
+            {selectedChannels.length > 0 && (
+              <div className="flex flex-wrap gap-2 mt-2">
+                {selectedChannels.map((channel) => (
+                  <span
+                    key={channel._id}
+                    className="inline-flex items-center px-2 py-1 bg-blue-50 text-blue-700 rounded"
+                  >
+                    <img
+                      src={channel.img}
+                      alt={channel.name}
+                      className="w-4 h-4 rounded-full mr-1"
+                      onError={(e) => {
+                        e.target.src = "https://via.placeholder.com/16";
+                      }}
+                    />
+                    {channel.name}
+                    <button
+                      onClick={() => {
+                        setSelectedChannels(
+                          selectedChannels.filter((c) => c._id !== channel._id)
+                        );
+                      }}
+                      className="ml-1 text-blue-500 hover:text-blue-700"
+                    >
+                      ×
+                    </button>
+                  </span>
+                ))}
+              </div>
+            )}
+          </div>
+
           {/* Date Range Selection */}
           <div className="flex gap-4">
             <input
@@ -247,6 +415,7 @@ export default function DashboardPage() {
           startDate={startDate}
           endDate={endDate}
           selectedProfiles={selectedProfiles}
+          selectedChannels={selectedChannels}
           onResultsUpdate={handleSearchResults} // Add this line
         />
       </div>

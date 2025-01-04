@@ -7,8 +7,14 @@ export default function VideoFormModal({
   handleSubmit,
   editingVideo,
   profiles,
+  channels,
 }) {
   if (!show) return null;
+
+  // Ensure formData.channels is initialized as an empty array if undefined
+  if (!formData.channels) {
+    formData.channels = [];
+  }
 
   const handleFileChange = (e) => {
     const file = e.target.files[0];
@@ -30,6 +36,8 @@ export default function VideoFormModal({
       }
 
       setFormData({ ...formData, videoFile: file });
+
+      console.log("Selected file:", formData);
     }
   };
 
@@ -140,6 +148,63 @@ export default function VideoFormModal({
                     className="rounded border-gray-300"
                   />
                   <span className="text-sm text-gray-600">{profile.name}</span>
+                </label>
+              ))}
+            </div>
+          </div>
+
+          {/* Channels Selection */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Channels
+            </label>
+            <div className="mt-1 grid grid-cols-2 sm:grid-cols-3 gap-2">
+              {channels.map((channel) => (
+                <label
+                  key={channel._id}
+                  className="flex items-center space-x-2"
+                >
+                  <input
+                    type="checkbox"
+                    checked={formData.channels?.some(
+                      (c) => c.channel === channel._id
+                    )}
+                    onChange={(e) => {
+                      if (e.target.checked) {
+                        setFormData({
+                          ...formData,
+                          channels: [
+                            ...formData.channels,
+                            {
+                              channel: channel._id,
+                              name: channel.name,
+                            },
+                          ],
+                        });
+                      } else {
+                        setFormData({
+                          ...formData,
+                          channels: formData.channels.filter(
+                            (c) => c.channel !== channel._id
+                          ),
+                        });
+                      }
+                    }}
+                    className="rounded border-gray-300"
+                  />
+                  <div className="flex items-center">
+                    <img
+                      src={channel.img}
+                      alt={channel.name}
+                      className="w-6 h-6 rounded-full mr-2"
+                      onError={(e) => {
+                        e.target.src = "https://via.placeholder.com/24";
+                      }}
+                    />
+                    <span className="text-sm text-gray-600">
+                      {channel.name}
+                    </span>
+                  </div>
                 </label>
               ))}
             </div>

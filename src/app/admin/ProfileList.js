@@ -150,14 +150,14 @@ export default function ProfileList() {
       </button>
 
       {/* Search Bar */}
-      <div className="bg-white p-4 rounded-lg shadow">
+      {/* <div className="bg-white p-4 rounded-lg shadow">
         <AdminSearchBar
           searchQuery={searchQuery}
           setSearchQuery={setSearchQuery}
           placeholder="Search profiles by name, occupation..."
           onSearch={handleSearch}
         />
-      </div>
+      </div> */}
 
       {/* Profile Form Modal */}
       <ProfileFormModal
