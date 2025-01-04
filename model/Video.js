@@ -30,6 +30,16 @@ const videoSchema = new mongoose.Schema(
         name: String,
       },
     ],
+    channels: [
+      {
+        channel: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: "Channel",
+          required: true,
+        },
+        name: String,
+      },
+    ],
     datetime: {
       type: Date,
       required: true,
@@ -46,7 +56,9 @@ videoSchema.index({
   description: "text",
   keywords: "text",
   "relatedPeople.name": "text",
+  "channels.name": "text",
 });
+
 videoSchema.index({ datetime: 1, createdAt: -1 });
 
 module.exports = mongoose.model("Video", videoSchema);

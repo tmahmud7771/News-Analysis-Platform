@@ -29,55 +29,6 @@ const upload = multer({
   },
 }).single("video");
 
-exports.uploadVideo = (req, res) => {
-  upload(req, res, async (err) => {
-    if (err) {
-      logger.error(`Upload error: ${err.message}`);
-      return res.status(400).json({
-        status: "error",
-        message: err.message,
-      });
-    }
-
-    try {
-      console.log("Upload request body:", req.body);
-      console.log("Upload file:", req.file);
-
-      if (!req.file) {
-        throw new Error("No video file provided");
-      }
-
-      // Create full URL for video
-      const videoUrl = `${process.env.BACKEND_URL}/uploads/${req.file.filename}`;
-
-      const videoData = {
-        title: req.body.title,
-        description: req.body.description,
-        datetime: req.body.datetime,
-        videoLink: videoUrl,
-        keywords: JSON.parse(req.body.keywords || "[]"),
-        relatedPeople: JSON.parse(req.body.relatedPeople || "[]"),
-      };
-
-      console.log("Creating video with data:", videoData);
-
-      const video = await Video.create(videoData);
-      logger.info(`Video uploaded successfully: ${video._id}`);
-
-      res.status(201).json({
-        status: "success",
-        data: video,
-      });
-    } catch (error) {
-      logger.error(`Error creating video: ${error.message}`);
-      res.status(400).json({
-        status: "error",
-        message: error.message,
-      });
-    }
-  });
-};
-
 exports.uploadVideo = async (req, res) => {
   try {
     if (!req.file) {
@@ -96,6 +47,7 @@ exports.uploadVideo = async (req, res) => {
       videoLink: videoUrl,
       keywords: JSON.parse(req.body.keywords || "[]"),
       relatedPeople: JSON.parse(req.body.relatedPeople || "[]"),
+      channels: JSON.parse(req.body.channels || "[]"),
       datetime: req.body.datetime,
     };
 
@@ -129,6 +81,9 @@ exports.updateVideo = async (req, res) => {
       title: req.body.title,
       description: req.body.description,
       datetime: req.body.datetime,
+      channels: JSON.parse(req.body.channels || "[]"),
+      keywords: JSON.parse(req.body.keywords || "[]"),
+      relatedPeople: JSON.parse(req.body.relatedPeople || "[]"),
     };
 
     // Update video file if provided
@@ -165,6 +120,7 @@ exports.updateVideo = async (req, res) => {
     });
   }
 };
+
 exports.deleteVideo = async (req, res) => {
   try {
     const video = await Video.findByIdAndDelete(req.params.id);
@@ -194,28 +150,29 @@ exports.deleteVideo = async (req, res) => {
   }
 };
 
+// controllers/videoController.js
 exports.searchVideos = async (req, res) => {
   try {
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 10;
     const skip = (page - 1) * limit;
 
-    const { query, startDate, endDate, people, keywords } = req.query;
+    const { query, startDate, endDate, people, channels, keywords } = req.query; // Add channels
 
     // Build search criteria
     const searchCriteria = {};
 
-    // Text search using regex for fuzzy matching and handling Unicode
+    // Text search using regex for fuzzy matching
     if (query) {
-      // Escape special regex characters to prevent regex injection
       const escapedQuery = query.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-      const searchRegex = new RegExp(escapedQuery, "iu"); // 'i' for case-insensitive, 'u' for unicode
+      const searchRegex = new RegExp(escapedQuery, "iu");
 
       searchCriteria.$or = [
         { title: { $regex: searchRegex } },
         { description: { $regex: searchRegex } },
-        { keywords: { $elemMatch: { $regex: searchRegex } } }, // Search within array elements
+        { keywords: { $elemMatch: { $regex: searchRegex } } },
         { "relatedPeople.name": { $regex: searchRegex } },
+        { "channels.name": { $regex: searchRegex } }, // Add channel name search
       ];
     }
 
@@ -232,7 +189,13 @@ exports.searchVideos = async (req, res) => {
       searchCriteria["relatedPeople.person"] = { $in: peopleIds };
     }
 
-    // Keywords filter - searching within array
+    // Channels filter (new)
+    if (channels) {
+      const channelIds = channels.split(",");
+      searchCriteria["channels.channel"] = { $in: channelIds };
+    }
+
+    // Keywords filter
     if (keywords) {
       const keywordList = keywords.split(",").map((k) => k.trim());
       searchCriteria.keywords = {
@@ -240,23 +203,16 @@ exports.searchVideos = async (req, res) => {
       };
     }
 
-    // Log the search criteria for debugging
-    console.log("Search Criteria:", JSON.stringify(searchCriteria, null, 2));
-
     // Execute query with pagination
     const [videos, total] = await Promise.all([
       Video.find(searchCriteria)
         .populate("relatedPeople.person", "name occupation img")
+        .populate("channels.channel", "name img") // Add channel population
         .sort({ datetime: -1, createdAt: -1 })
         .skip(skip)
-        .limit(limit)
-        .exec(), // Add exec() to ensure proper promise resolution
-
+        .limit(limit),
       Video.countDocuments(searchCriteria),
     ]);
-
-    // Log the results for debugging
-    console.log(`Found ${total} videos matching criteria`);
 
     res.json({
       status: "success",

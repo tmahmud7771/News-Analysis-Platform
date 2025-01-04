@@ -49,6 +49,7 @@ app.use("/uploads", (req, res, next) => {
 app.use("/api/auth", require("./routes/authRoutes"));
 app.use("/api/persons", require("./routes/personRoutes"));
 app.use("/api/videos", require("./routes/videoRoutes"));
+app.use("/api/channels", require("./routes/channelRoutes"));
 
 app.use(errorHandler);
 

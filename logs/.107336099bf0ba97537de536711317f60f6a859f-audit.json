@@ -14,6 +14,16 @@
             "date": 1735682814281,
             "name": "/Users/tausifmahmud/Developer/rapid_pr/backend/logs/error-2025-01-01.log",
             "hash": "5549b0e50435f09fe9561e589902230848e3f372c079e76a55b58b16faaf8b18"
+        },
+        {
+            "date": 1735763314037,
+            "name": "/Users/tausifmahmud/Developer/rapid_pr/backend/logs/error-2025-01-02.log",
+            "hash": "dda77679a4e6177f529a2a38660f34e1158b8bc7aa1dd03801e2897ef0d44d84"
+        },
+        {
+            "date": 1736007646145,
+            "name": "/Users/tausifmahmud/Developer/rapid_pr/backend/logs/error-2025-01-04.log",
+            "hash": "de8a37a2b51c2a53cf201dd6474f40ae08bdf5d04d847714fe813c89fdf7bd6b"
         }
     ],
     "hashType": "sha256"
